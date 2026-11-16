@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>정조 지문 - 인터랙티브 관계망</title>
+<style>
+:root{
+  --bg:#fff8fb;--paper:#fff;--ink:#493746;--muted:#8f7b8b;
+  --line:#eadce5;--accent:#bd6f9a;--shadow:0 14px 38px rgba(107,65,91,.11);
+}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at 15% 10%,#fff 0,#fff8fb 42%,#f8eef5 100%);
+ color:var(--ink);font-family:"Pretendard","Noto Sans KR",Arial,sans-serif}
+header{text-align:center;padding:34px 18px 20px}
+.kicker{font-size:11px;letter-spacing:.22em;font-weight:800;color:#bd6f9a}
+h1{font-size:clamp(25px,4vw,39px);margin:10px 0 7px}
+header p{margin:0;color:var(--muted);font-size:14px}
+main{max-width:1500px;margin:auto;padding:0 18px 30px}
+.metrics{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:0 0 15px}
+.metric{background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:12px;color:#806b7c}
+.metric b{color:#bd6f9a;font-size:15px;margin-right:4px}
+.toolbar{display:flex;gap:9px;flex-wrap:wrap;padding:12px;background:#fff;border:1px solid var(--line);
+ border-radius:16px;box-shadow:var(--shadow);margin-bottom:13px}
+input,select,button{font:inherit;color:var(--ink);background:white;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+input{flex:1;min-width:180px}
+button{cursor:pointer;font-weight:700;transition:.18s}
+button:hover,button.active{background:#fff0f7;border-color:#d99abc;color:#a34f7d}
+.workspace{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:13px;align-items:stretch}
+.graph-panel,.info-panel{background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+.graph-panel{position:relative;overflow:hidden;min-height:680px}
+#network{width:100%;height:680px;display:block;touch-action:none;cursor:grab}
+#network.dragging{cursor:grabbing}
+.info-panel{padding:19px;min-height:300px}
+.info-kicker{font-size:10px;letter-spacing:.15em;color:#bd6f9a;font-weight:800}
+#infoTitle{font-size:22px;line-height:1.35;margin:8px 0}
+#infoClass{display:inline-block;border-radius:999px;padding:5px 10px;background:#f8edf4;color:#9c5c7e;font-size:11px;font-weight:800}
+#infoDesc{font-size:14px;line-height:1.8;color:#6d5969;margin:14px 0}
+.info-subtitle{font-size:12px;color:#a18d9c;font-weight:800;margin:17px 0 7px}
+#connections{display:grid;gap:7px}
+.connection{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid #f0e5ec;
+ border-radius:10px;padding:8px 10px;font-size:12px;background:#fffafd}
+.connection span:last-child{color:#a17891;text-align:right}
+.placeholder{color:#9b8997;font-size:13px;line-height:1.8}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:18px}
+.legend-item{display:flex;align-items:center;gap:7px;font-size:11px;color:#806f7d}
+.dot{width:10px;height:10px;border-radius:50%}
+.tip{font-size:11px;color:#a18d9c;line-height:1.7;margin-top:18px;border-top:1px solid #f0e5ec;padding-top:13px}
+.node{cursor:pointer;transition:opacity .2s}
+.node circle{stroke:#fff;stroke-width:3;filter:drop-shadow(0 4px 5px rgba(70,42,61,.18));transition:r .18s,stroke-width .18s,filter .18s}
+.node:hover circle{filter:drop-shadow(0 0 9px rgba(189,111,154,.65));stroke:#fff;stroke-width:5}
+.node text{font-size:12px;font-weight:800;fill:#493746;text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
+.node .subtext{font-size:9px;font-weight:500;fill:#806b7c}
+.node.selected circle{stroke:#8e456e;stroke-width:5;filter:drop-shadow(0 0 11px rgba(189,111,154,.65))}
+.node.dim{opacity:.12}
+.link{stroke:#d9c3d1;stroke-width:1.8;opacity:.75;fill:none;transition:opacity .2s,stroke-width .2s}
+.link.active{stroke:#bd6f9a;stroke-width:3.2;opacity:1}
+.link.dim{opacity:.06}
+.link-label{font-size:10px;fill:#927b8b;paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round;pointer-events:none}
+.link-label.dim{opacity:.08}
+.tooltip{position:absolute;z-index:5;display:none;max-width:240px;pointer-events:none;background:rgba(73,55,70,.95);
+ color:white;border:1px solid rgba(255,255,255,.3);border-radius:12px;padding:10px 12px;box-shadow:0 8px 25px #5d3b5330;
+ font-size:12px;line-height:1.6}
+.tooltip strong{display:block;font-size:14px;margin-bottom:3px}
+.tooltip em{font-style:normal;color:#f4cfe1;font-size:10px}
+.graph-note{position:absolute;left:14px;bottom:12px;background:#ffffffdf;border:1px solid var(--line);
+ border-radius:9px;padding:7px 10px;color:#9b8796;font-size:10px}
+@media(max-width:900px){.workspace{grid-template-columns:1fr}.graph-panel{min-height:570px}#network{height:570px}}
+@media(max-width:540px){header{padding-top:26px}.toolbar input{min-width:100%}.graph-panel{min-height:500px}#network{height:500px}.legend{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header>
+ <div class="kicker">HISTORICAL NETWORK ANALYSIS</div>
+ <h1>정조 지문 속 인물과 관계망</h1>
+ <p>노드에 마우스를 올리면 확대되고, 클릭하면 상세 설명과 연결 관계를 확인할 수 있습니다.</p>
+</header>
+<main>
+ <div class="metrics">
+  <div class="metric"><b id="nodeTotal">21</b>개 노드</div>
+  <div class="metric"><b id="edgeTotal">22</b>개 관계</div>
+  <div class="metric"><b>6</b>개 클래스</div>
+ </div>
+ <div class="toolbar">
+  <input id="search" type="search" placeholder="인물·사상·제도 검색">
+  <select id="filter">
+   <option value="all">전체 클래스</option>
+   <option value="인물">왕실 및 인물</option><option value="사상">성리학 및 사상</option>
+   <option value="정치">정치 및 제도</option><option value="민생">민생 및 정책</option>
+   <option value="저술">저술 및 문화</option><option value="사건">역사적 사건 및 공간</option>
+  </select>
+  <button id="labels" class="active">관계 이름 표시</button>
+  <button id="reset">전체 보기</button>
+ </div>
+ <div class="workspace">
+  <section class="graph-panel">
+   <svg id="network" viewBox="0 0 1000 680" aria-label="정조 관련 인물과 개념의 관계망">
+    <g id="links"></g><g id="labelsLayer"></g><g id="nodes"></g>
+   </svg>
+   <div id="tooltip" class="tooltip"></div>
+   <div class="graph-note">마우스 오버: 확대 · 클릭: 고정 선택 · 드래그: 노드 이동</div>
+  </section>
+  <aside class="info-panel">
+   <div class="info-kicker">NODE INFORMATION</div>
+   <h2 id="infoTitle">노드를 선택해 보세요</h2>
+   <span id="infoClass" style="display:none"></span>
+   <p id="infoDesc" class="placeholder">각 원은 텍스트 속 인물·사상·제도 등의 핵심 요소를 뜻합니다. 원에 마우스를 올려 미리 보고, 클릭하면 자세한 설명을 확인할 수 있어요.</p>
+   <div class="info-subtitle" id="connectionHeading" style="display:none">연결된 관계</div>
+   <div id="connections"></div>
+   <div class="legend">
+    <div class="legend-item"><i class="dot" style="background:#d98eb5"></i>왕실 및 인물</div>
+    <div class="legend-item"><i class="dot" style="background:#a99ad4"></i>성리학 및 사상</div>
+    <div class="legend-item"><i class="dot" style="background:#e3b46e"></i>정치 및 제도</div>
+    <div class="legend-item"><i class="dot" style="background:#83b9aa"></i>민생 및 정책</div>
+    <div class="legend-item"><i class="dot" style="background:#83a9cf"></i>저술 및 문화</div>
+    <div class="legend-item"><i class="dot" style="background:#d69b83"></i>역사적 사건 및 공간</div>
+   </div>
+   <div class="tip">※ 관계는 앞서 정리한 텍스트 분석을 바탕으로 구성했습니다. 특히 사상적 계보는 직접적인 사제 관계라기보다 학문적 존숭·계승의 의미로 해석해야 합니다.</div>
+  </aside>
+ </div>
+</main>
+<script>
+const colors={인물:"#d98eb5",사상:"#a99ad4",정치:"#e3b46e",민생:"#83b9aa",저술:"#83a9cf",사건:"#d69b83"};
+const nodes=[
+{id:"정조",group:"인물",x:500,y:325,desc:"조선 제22대 국왕. 이 관계망에서는 왕실 인물, 성리학적 이상, 정치·제도, 민생 정책, 저술 및 역사적 공간을 연결하는 중심 노드로 배치했습니다."},
+{id:"영조",group:"인물",x:350,y:150,desc:"조선 제21대 국왕으로 정조의 조부입니다. 정조의 왕위 계승과 왕실 배경을 이해하는 데 관련되는 인물입니다."},
+{id:"사도세자",group:"인물",x:170,y:270,desc:"정조의 아버지입니다. 정조의 가족사와 왕실 서사를 구성하는 핵심 인물입니다."},
+{id:"효장세자",group:"인물",x:300,y:65,desc:"왕실 계보와 정조의 계승 문제를 이해할 때 함께 언급되는 인물입니다."},
+{id:"혜경궁",group:"인물",x:90,y:390,desc:"사도세자의 부인이자 정조의 어머니인 혜경궁 홍씨를 가리킵니다."},
+{id:"윤행임",group:"인물",x:700,y:110,desc:"정조와 관련된 글을 지은 문신으로, 텍스트의 기록·서술 주체와 연결되는 인물입니다."},
+
+{id:"공자",group:"사상",x:120,y:570,desc:"유교 사상의 기초를 마련한 사상가입니다. 텍스트에 나타난 유교적 학문 전통의 출발점으로 연결됩니다."},
+{id:"맹자",group:"사상",x:275,y:585,desc:"유교 사상가로 왕도정치와 민본적 통치 이념과 관련해 이해할 수 있습니다."},
+{id:"정자",group:"사상",x:425,y:590,desc:"성리학 전통을 발전시킨 정씨 형제를 가리키는 표현으로 볼 수 있습니다. 원문에서 가리키는 정확한 인물은 문맥 확인이 필요합니다."},
+{id:"주자",group:"사상",x:570,y:590,desc:"주희를 가리키며, 성리학의 집대성자로 존숭된 인물입니다."},
+{id:"천리",group:"사상",x:740,y:550,desc:"성리학에서 자연과 인간 사회를 관통하는 보편적 이치라는 의미로 쓰이는 개념입니다."},
+{id:"인(仁)",group:"사상",x:870,y:430,desc:"유교의 핵심 덕목 가운데 하나로, 사람을 사랑하고 타인을 배려하는 도덕적 마음을 뜻합니다."},
+{id:"경(敬)",group:"사상",x:850,y:570,desc:"마음을 삼가고 집중해 바르게 유지하는 태도와 관련된 성리학적 수양 개념입니다."},
+{id:"왕도",group:"사상",x:920,y:300,desc:"덕과 인의에 기초해 백성을 다스리는 정치 이상을 뜻합니다."},
+
+{id:"규장각",group:"정치",x:660,y:245,desc:"정조가 학문 진흥과 인재 양성을 위해 중점적으로 운영한 왕실 학술 기관입니다."},
+{id:"장용영",group:"정치",x:820,y:180,desc:"정조대에 설치된 친위 군영으로, 왕권 강화와 국왕 호위 체계와 관련됩니다."},
+{id:"권력 운영",group:"정치",x:690,y:350,desc:"정조의 통치 방식과 왕권 운영을 묶어 표현한 분석 노드입니다."},
+{id:"인재 등용",group:"정치",x:840,y:75,desc:"인재를 발탁하고 활용하는 정책·통치의 측면을 나타냅니다."},
+
+{id:"백성",group:"민생",x:330,y:440,desc:"정조의 애민 정치와 민생 정책이 향하는 주요 대상입니다."},
+{id:"균역·조세·구휼",group:"민생",x:150,y:465,desc:"세금 부담 조정과 구휼 등 백성의 생활을 다루는 정책 영역을 묶은 노드입니다."},
+
+{id:"《대전통편》",group:"저술",x:510,y:105,desc:"정조대에 편찬된 법전으로, 조선의 법령과 제도를 정리한 편찬 사업과 연결됩니다."},
+{id:"《명의록》 등 문헌",group:"저술",x:920,y:485,desc:"앞서 분석에서 함께 묶은 정조대 관련 문헌·편찬물의 범주입니다. 각 문헌의 성격과 편찬 시기는 원문 및 별도 자료로 확인할 필요가 있습니다."},
+
+{id:"현륭원·화성",group:"사건",x:50,y:180,desc:"정조의 사도세자 추숭과 능행, 화성 건설 등 왕실 기억과 공간의 정치를 살펴볼 때 연결되는 역사적 공간입니다."}
+];
+const edges=[
+["영조","정조","조부·손자"],["사도세자","정조","부자 관계"],["혜경궁","정조","모자 관계"],["효장세자","정조","왕실 계승 서사"],
+["윤행임","정조","관련 글 제술·기록"],
+["공자","맹자","유교 사상 전통"],["맹자","정자","학문 전통의 계승"],["정자","주자","성리학 전통의 발전"],["주자","정조","학문적 존숭"],
+["천리","정조","통치 이념과 연결"],["인(仁)","왕도","덕치의 핵심 덕목"],["경(敬)","정조","수양·통치의 가치"],
+["정조","규장각","설치·운영 및 학문 진흥"],["정조","장용영","설치·운영"],["정조","권력 운영","왕권 운영"],["인재 등용","규장각","학문·인재 양성"],
+["정조","백성","애민 정치"],["백성","균역·조세·구휼","정책의 대상·영역"],
+["정조","《대전통편》","편찬·정리"],["정조","《명의록》 등 문헌","관련 문헌·편찬 사업"],["정조","현륭원·화성","능행·공간 조성"],["사도세자","현륭원·화성","추숭·기억의 공간"]
+];
+const svg=document.getElementById("network"),linkLayer=document.getElementById("links"),labelLayer=document.getElementById("labelsLayer"),nodeLayer=document.getElementById("nodes");
+const ns="http://www.w3.org/2000/svg";let selected=null,hovered=null,showLabels=true,drag=null;
+const byId=Object.fromEntries(nodes.map(n=>[n.id,n]));
+function el(tag,attrs,parent){const e=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs||{}))e.setAttribute(k,v);if(parent)parent.appendChild(e);return e;}
+const linkEls=[],labelEls=[],nodeEls={};
+edges.forEach((d,i)=>{
+ const a=byId[d[0]],b=byId[d[1]];
+ const line=el("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,class:"link","data-a":d[0],"data-b":d[1]},linkLayer);
+ linkEls.push(line);
+ const t=el("text",{x:(a.x+b.x)/2,y:(a.y+b.y)/2-6,class:"link-label"},labelLayer);t.textContent=d[2];labelEls.push(t);
+});
+nodes.forEach(n=>{
+ const g=el("g",{class:"node",transform:`translate(${n.x},${n.y})`,"data-id":n.id},nodeLayer);
+ const c=el("circle",{r:n.id==="정조"?27:20,fill:colors[n.group]},g);
+ const t=el("text",{y:4},g);t.textContent=n.id;
+ g.addEventListener("mouseenter",e=>{hovered=n.id;applyHighlight();showTooltip(n,e);});
+ g.addEventListener("mousemove",e=>moveTooltip(e));
+ g.addEventListener("mouseleave",()=>{hovered=null;document.getElementById("tooltip").style.display="none";applyHighlight();});
+ g.addEventListener("click",e=>{e.stopPropagation();selected=selected===n.id?null:n.id;showInfo(selected?byId[selected]:null);applyHighlight();});
+ g.addEventListener("pointerdown",e=>{drag=n.id;svg.classList.add("dragging");g.setPointerCapture(e.pointerId);});
+ g.addEventListener("pointermove",e=>{if(drag!==n.id)return;const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform(svg.getScreenCTM().inverse());n.x=Math.max(28,Math.min(972,q.x));n.y=Math.max(28,Math.min(652,q.y));g.setAttribute("transform",`translate(${n.x},${n.y})`);updateLinks();});
+ g.addEventListener("pointerup",()=>{drag=null;svg.classList.remove("dragging");});
+ g.addEventListener("pointercancel",()=>{drag=null;svg.classList.remove("dragging");});
+ nodeEls[n.id]=g;
+});
+function updateLinks(){edges.forEach((d,i)=>{const a=byId[d[0]],b=byId[d[1]],l=linkEls[i],t=labelEls[i];l.setAttribute("x1",a.x);l.setAttribute("y1",a.y);l.setAttribute("x2",b.x);l.setAttribute("y2",b.y);t.setAttribute("x",(a.x+b.x)/2);t.setAttribute("y",(a.y+b.y)/2-6);});}
+function connected(id){return edges.filter(e=>e[0]===id||e[1]===id);}
+function applyHighlight(){
+ const focus=selected||hovered;const neighborSet=new Set(focus?connected(focus).flatMap(e=>[e[0],e[1]]):[]);
+ nodes.forEach(n=>{const g=nodeEls[n.id];g.classList.toggle("selected",selected===n.id);g.classList.toggle("dim",!!focus&&n.id!==focus&&!neighborSet.has(n.id));});
+ edges.forEach((d,i)=>{const active=!!focus&&(d[0]===focus||d[1]===focus);linkEls[i].classList.toggle("active",active);linkEls[i].classList.toggle("dim",!!focus&&!active);labelEls[i].classList.toggle("dim",!!focus&&!active);});
+}
+function showTooltip(n,e){const tip=document.getElementById("tooltip");tip.innerHTML=`<strong>${n.id}</strong><em>${groupName(n.group)}</em><div>${n.desc}</div>`;tip.style.display="block";moveTooltip(e);}
+function moveTooltip(e){const panel=document.querySelector(".graph-panel").getBoundingClientRect(),tip=document.getElementById("tooltip");let x=e.clientX-panel.left+14,y=e.clientY-panel.top+14;x=Math.min(x,panel.width-255);y=Math.min(y,panel.height-155);tip.style.left=Math.max(8,x)+"px";tip.style.top=Math.max(8,y)+"px";}
+function groupName(g){return {인물:"왕실 및 인물",사상:"성리학 및 사상",정치:"정치 및 제도",민생:"민생 및 정책",저술:"저술 및 문화",사건:"역사적 사건 및 공간"}[g];}
+function showInfo(n){
+ const title=document.getElementById("infoTitle"),badge=document.getElementById("infoClass"),desc=document.getElementById("infoDesc"),con=document.getElementById("connections"),heading=document.getElementById("connectionHeading");
+ if(!n){title.textContent="노드를 선택해 보세요";badge.style.display="none";desc.className="placeholder";desc.textContent="각 원은 텍스트 속 인물·사상·제도 등의 핵심 요소를 뜻합니다. 원에 마우스를 올려 미리 보고, 클릭하면 자세한 설명을 확인할 수 있어요.";con.innerHTML="";heading.style.display="none";return;}
+ title.textContent=n.id;badge.style.display="inline-block";badge.textContent=groupName(n.group);desc.className="";desc.textContent=n.desc;heading.style.display="block";con.innerHTML="";
+ const rel=connected(n.id);
+ if(!rel.length){con.textContent="표시된 직접 연결 관계가 없습니다.";return;}
+ rel.forEach(e=>{const other=e[0]===n.id?e[1]:e[0];const row=document.createElement("div");row.className="connection";row.innerHTML=`<span>${other}</span><span>${e[2]}</span>`;con.appendChild(row);});
+}
+document.getElementById("search").addEventListener("input",filterNodes);
+document.getElementById("filter").addEventListener("change",filterNodes);
+function filterNodes(){
+ const q=document.getElementById("search").value.trim().toLowerCase(),f=document.getElementById("filter").value;
+ nodes.forEach(n=>{const matchText=(n.id+" "+n.desc).toLowerCase().includes(q),matchGroup=f==="all"||n.group===f;nodeEls[n.id].style.display=matchText&&matchGroup?"":"none";});
+ edges.forEach((d,i)=>{const visible=nodeEls[d[0]].style.display!=="none"&&nodeEls[d[1]].style.display!=="none";linkEls[i].style.display=visible?"":"none";labelEls[i].style.display=visible&&showLabels?"":"none";});
+}
+document.getElementById("labels").addEventListener("click",()=>{showLabels=!showLabels;document.getElementById("labels").textContent=showLabels?"관계 이름 표시":"관계 이름 숨기기";document.getElementById("labels").classList.toggle("active",showLabels);labelEls.forEach(t=>t.style.display=showLabels?"":"none");});
+document.getElementById("reset").addEventListener("click",()=>{selected=null;hovered=null;document.getElementById("search").value="";document.getElementById("filter").value="all";nodes.forEach(n=>{nodeEls[n.id].style.display="";});edges.forEach((d,i)=>{linkEls[i].style.display="";labelEls[i].style.display=showLabels?"":"none";});showInfo(null);applyHighlight();});
+svg.addEventListener("click",()=>{selected=null;showInfo(null);applyHighlight();});
+document.getElementById("nodeTotal").textContent=nodes.length;
+document.getElementById("edgeTotal").textContent=edges.length;
+labelEls.forEach(t=>t.style.display="");
+</script>
+</body>
+</html>
